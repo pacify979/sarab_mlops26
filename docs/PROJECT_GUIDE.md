@@ -300,8 +300,8 @@ Positives:       5,728 (1.96%)
 Saved ->         .../data/processed/features.parquet
 ```
 
-**Interpretation:** 292,000 feature rows, 23 features, and a **1.96% positive
-rate** — failures are rare, so the classes are imbalanced. This is expected and
+**Interpretation:** 292,000 feature rows, 23 features, and a 1.96% positive
+rate: failures are rare, so the classes are imbalanced. This is expected and
 is handled at training time with class weighting. The output file
 `data/processed/features.parquet` is the single input to training.
 
@@ -312,7 +312,7 @@ is handled at training time with class weighting. The output file
 - 2 metadata: `model` (categorical), `age` (numeric)
 
 (The parquet also keeps `datetime` and `machineID` for splitting/labeling; these
-are **not** model inputs.)
+are not model inputs.)
 
 ---
 
@@ -322,28 +322,26 @@ are **not** model inputs.)
 
 Trains **two** models on identical data and compares them:
 
-- **baseline** — `RandomForestClassifier`, no pruning (`ccp_alpha = 0`)
-- **pruned** — same, with **cost-complexity pruning** (`ccp_alpha > 0`)
+- **baseline** -> `RandomForestClassifier`, no pruning (`ccp_alpha = 0`)
+- **pruned** -> same, with cost-complexity pruning (`ccp_alpha > 0`)
 
-It reports the trade-off that matters for a real-time service: **model size on
-disk** and **inference latency** versus **predictive quality** (PR-AUC). The
+It reports the trade-off that matters for a real-time service: model size on
+disk and inference latency versus predictive quality (PR-AUC). The
 pruned model is saved as the production artifact.
 
 ### 7.2 Key design decisions
 
 - **Time-based split, never random.** Telemetry is a time series; a random split
-  would leak *future* readings into the training set and inflate the scores. We
-  train on the earlier period and test on the later one (last 20% of the
+  would leak *future* readings into the training set and inflate the scores. Training is done on the earlier period and testing on the later one (last 20% of the
   timeline). See `time_split()`.
 - **Class weighting.** With only ~2% positives, `class_weight="balanced"` stops
   the model from trivially predicting "no failure" for everything.
 - **PR-AUC as the headline metric.** Under heavy class imbalance, accuracy is
-  meaningless (98% by always predicting "no failure"). **Average precision
+  meaningless (98% always predicting "no failure"). **Average precision
   (PR-AUC)** measures how well the model ranks the rare positive class.
 - **Cost-complexity pruning (`ccp_alpha`).** scikit-learn's `RandomForest`
-  applies Breiman's cost-complexity pruning to **every tree** when `ccp_alpha`
-  is set, removing the weakest branches. We search a small grid and keep the
-  **strongest** pruning that retains ≥98% of the baseline PR-AUC — i.e. maximum
+  applies Breiman's cost-complexity pruning to every tree when `ccp_alpha`
+  is set, removing the weakest branches. We search a small grid and keep the strongest pruning that retains ≥98% of the baseline PR-AUC. Maximum
   compression with negligible quality loss.
 
 ### 7.3 How to run
@@ -389,20 +387,19 @@ Feature schema saved   -> models/feature_columns.joblib
 | Size on disk | 29.52 MB | **0.78 MB** | **38× smaller** |
 | Single-row latency | 15.54 ms | 15.57 ms | **unchanged** |
 
-**The honest, important nuance:** pruning delivered a huge **footprint** win
-(38× smaller model, 40× fewer nodes) with **no accuracy loss**, but **latency
-was flat**. This is because per-request latency here is dominated by
-Python/scikit-learn dispatch overhead, not tree traversal. The correct
-conclusion — and a strong point for the analysis section — is that the pruning
+Pruning delivered a huge footprint win
+(38× smaller model, 40× fewer nodes) with no accuracy loss, but latency
+was flat. This is because per-request latency here is dominated by
+Python/scikit-learn dispatch overhead, not tree traversal. The conclusion is that the pruning
 payoff for this model is **deployment footprint** (container size, RAM,
-cold-start), not inference speed. Do not claim a latency improvement.
+cold-start), not inference speed. There is no latency improvement.
 
 ### 7.6 Artifacts produced
 
-- `models/model.joblib` — the **pruned** production model (a full scikit-learn
+- `models/model.joblib`: the pruned production model (a full scikit-learn
   `Pipeline`: one-hot encoding + forest). The API loads exactly this.
-- `models/model_baseline.joblib` — unpruned model, kept for the comparison.
-- `models/feature_columns.joblib` — the exact feature order, so the API can
+- `models/model_baseline.joblib`: unpruned model, kept for the comparison.
+- `models/feature_columns.joblib`: the exact feature order, so the API can
   build inputs the model expects.
 
 ---
@@ -411,14 +408,14 @@ cold-start), not inference speed. Do not claim a latency improvement.
 
 ### 8.1 Components
 
-- **`api/schemas.py`** — `TelemetryFeatures` (the 23-field request body, with an
+- **`api/schemas.py`**: `TelemetryFeatures` (the 23-field request body, with an
   example) and `PredictionResponse` (`failure_probability`, `failure_predicted`,
   `threshold`). Pydantic validates every request automatically.
-- **`api/db.py`** — SQLite logging. On startup `init_db()` creates
+- **`api/db.py`**: SQLite logging. On startup `init_db()` creates
   `monitoring/predictions.db` with a `predictions` table; every prediction is
   inserted with a timestamp, the input features (as JSON), the probability, and
   the 0/1 decision. This is the historical record the monitor reads.
-- **`api/main.py`** — the FastAPI application. Loads the pruned model + feature
+- **`api/main.py`**: the FastAPI application. Loads the pruned model + feature
   order once at startup (via a lifespan handler) and exposes three endpoints.
 
 ### 8.2 Endpoints
@@ -487,9 +484,9 @@ sqlite3 monitoring/predictions.db \
 
 Monitoring compares two distributions:
 
-- **reference** — the model's **training-period** window (what "normal" looked
+- **reference**: the model's **training-period** window (what "normal" looked
   like), with the model's own predicted probabilities.
-- **current** — recent **production** requests, read back from the SQLite log.
+- **current**: recent **production** requests, read back from the SQLite log.
 
 EvidentlyAI computes **data drift** (per-feature distribution shift),
 **prediction drift** (shift in the model's output distribution), and **data
@@ -499,11 +496,11 @@ read).
 
 ### 9.2 The two scripts
 
-- **`monitoring/replay.py`** — samples 2,000 rows from the **post-training**
+- **`monitoring/replay.py`**: samples 2,000 rows from the post-training
   period and POSTs them to the running API, so they are logged as production
-  traffic. With `--drift`, it first applies a **synthetic fleet-wide fault**
-  (elevated vibration and pressure) as a **positive control** for the monitor.
-- **`monitoring/monitor.py`** — builds reference + current, runs Evidently, saves
+  traffic. With `--drift`, it first applies a synthetic fleet-wide fault
+  (elevated vibration and pressure) as a positive control for the monitor.
+- **`monitoring/monitor.py`**: builds reference + current, runs Evidently, saves
   `reports/drift_report<label>.html` and `reports/drift_status<label>.json`, and
   prints a summary + verdict. The `--label` flag names the output files.
 
@@ -511,19 +508,19 @@ read).
 
 An alert fires if **any** of the following hold:
 
-- dataset-level drift is flagged, **or**
-- ≥30% of input features drifted, **or**
-- **prediction (output) drift** is detected.
+- dataset-level drift is flagged, or
+- ≥30% of input features drifted, or
+- prediction (output) drift is detected.
 
 Prediction drift is the most important trigger: a shifted output distribution
 means the model's behaviour has changed, regardless of which inputs moved.
 
-### 9.4 How to run — the two scenarios
+### 9.4 How to run the two scenarios
 
 The monitor reads the SQLite log, so the **API must be running** and the log
 must be populated first. Run each scenario against a **fresh** log.
 
-**Scenario A — healthy (no false alarm):**
+**Scenario A: healthy (no false alarm):**
 
 ```bash
 # terminal 1: start the API
@@ -535,7 +532,7 @@ python -m monitoring.replay              # replay real later-period traffic
 python -m monitoring.monitor --label healthy
 ```
 
-**Scenario B — injected drift (true positive):**
+**Scenario B: injected drift (true positive):**
 
 ```bash
 # with the API still running in terminal 1:
@@ -548,11 +545,11 @@ python -m monitoring.monitor --label drift
 
 | Scenario | Drifted columns | Prediction drift | Verdict |
 |---|---|---|---|
-| A: Healthy | 0 (0%) | False (score ≈ 0.04) | ✅ OK — no significant drift |
-| B: Injected fault | 7 (29.2%) | **True (score ≈ 1.18)** | 🚨 DRIFT DETECTED — prediction (output) drift |
+| A: Healthy | 0 (0%) | False (score ≈ 0.04) | Good, no significant drift |
+| B: Injected fault | 7 (29.2%) | **True (score ≈ 1.18)** | DRIFT DETECTED, prediction (output) drift |
 
-This pair is the complete monitoring story: **no false alarm** on genuine
-production data, and a **correct alert** when a real fault is injected. Open the
+This pair is the complete monitoring story: no false alarm on genuine
+production data, and a correct alert when a real fault is injected. Open the
 HTML reports in a browser to see per-feature distributions; read
 `reports/drift_status_*.json` for the machine-readable verdict.
 
@@ -585,7 +582,7 @@ Example `reports/drift_status_drift.json`:
 
 ### 10.1 What the image contains
 
-`Dockerfile` builds a lean **serving-only** image: Python 3.10-slim +
+`Dockerfile` builds a lean serving-only image: Python 3.10-slim +
 `requirements-api.txt` + `src/` + `api/` + `models/`. Monitoring/EDA code and
 the raw dataset are excluded via `.dockerignore`, keeping the image small. The
 container's single job is real-time inference on port 8000.
@@ -678,32 +675,31 @@ docker run --rm -p 8000:8000 amr-fleet-api
 
 ---
 
-## 12. Design decisions and FAQ
+## 12. Design decisions
 
 **Why predict "failure within 24h" rather than "task success" directly?**
 The dataset labels component failures, not task outcomes. A failing unit is
 precisely a unit that will not complete its task, so failure-within-a-horizon is
-the natural, honest proxy for "task execution success" — and predictive
-maintenance *is* fleet-health monitoring, which matches the project title
-tightly.
+the natural, honest proxy for "task execution success" and predictive
+maintenance is fleet-health monitoring.
 
 **Why is the positive rate only ~2%?**
-Failures are genuinely rare. This is why we use class weighting and evaluate with
-PR-AUC rather than accuracy.
+Failures are genuinely rare. This is why class weighting and evaluation with
+PR-AUC is used rather than accuracy.
 
 **Why did pruning not improve latency?**
 Per-request latency is dominated by Python/scikit-learn call overhead, not tree
-traversal, so a smaller forest predicts in about the same wall-clock time. The
-pruning benefit is footprint (size/RAM/cold-start), which is the honest framing.
+traversal, so a smaller forest predicts in about the same time. The
+pruning benefit is footprint.
 
 **Why does the healthy scenario show no drift?**
 The telemetry is roughly stationary across 2015, so there is little natural
-drift — the correct, no-false-alarm result. The injected-drift scenario is the
+drift, the correct, no-false-alarm result. The injected-drift scenario is the
 positive control that proves the detector fires when it should.
 
 **Why one-hot encode inside the model pipeline?**
 The saved artifact is a full scikit-learn `Pipeline` (encoder + forest), so the
-API just calls `predict_proba` on raw feature values — no preprocessing logic is
+API just calls `predict_proba` on raw feature values. No preprocessing logic is
 duplicated in the serving layer, eliminating train/serve skew.
 
 ---
@@ -713,17 +709,16 @@ duplicated in the serving layer, eliminating train/serve skew.
 The theoretical part of the project concerns drift detection and AI
 observability in autonomous-fleet systems. The implementation demonstrates:
 
-- **Data drift** — per-feature distribution shift, detected by Evidently's
-  `DataDriftPreset` (statistical tests per column). Corresponds to changes in the
-  *input* telemetry distribution (e.g. sensors degrading fleet-wide).
-- **Prediction drift** — shift in the model's *output* distribution, the earliest
+- **Data drift**: per-feature distribution shift, detected by Evidently's
+  `DataDriftPreset` (statistical tests per column). Corresponds to changes in the input telemetry distribution (e.g. sensors degrading fleet-wide).
+- **Prediction drift**: shift in the model's output distribution, the earliest
   observable symptom of concept drift when ground-truth labels are delayed (as
   failure labels always are in production).
-- **AI observability** — every request is logged (SQLite), and the monitor emits
+- **AI observability**: every request is logged (SQLite), and the monitor emits
   a machine-readable verdict (`drift_status_*.json`). This is the interface an
-  **automated retraining trigger** would consume: `drift_alert == true` →
+  automated retraining trigger would consume: `drift_alert == true` →
   schedule a retrain on recent data.
-- **Automated retraining (design)** — the `decide()` rule is deliberately the
+- **Automated retraining (design)**: the `decide()` rule is deliberately the
   policy layer: dataset drift, a large share of drifted features, or prediction
   drift each raise the alert. In a full system this JSON would gate a retraining
   pipeline; here it is produced and demonstrated with a positive control.
@@ -737,7 +732,7 @@ observability in autonomous-fleet systems. The implementation demonstrates:
 | `ensurepip is not available` when creating the venv | `sudo apt install python3.10-venv` |
 | `ModuleNotFoundError: No module named 'src'` | Run scripts as modules from the project root: `python -m src.train`, not `python src/train.py` |
 | `No logged predictions found` from the monitor | Start the API and run `python -m monitoring.replay` first; the monitor reads the SQLite log |
-| Monitor connection errors during replay | The API is not running — start `uvicorn api.main:app --port 8000` in another terminal |
+| Monitor connection errors during replay | The API is not running start `uvicorn api.main:app --port 8000` in another terminal |
 | Model unpickling warning in Docker | Ensure `requirements-api.txt` pins the same `scikit-learn` version used for training (`1.5.2`) |
 | Port 8000 already in use | Stop the old server (`pkill -f "uvicorn api.main"`) or use `--port 8001` |
 ```
