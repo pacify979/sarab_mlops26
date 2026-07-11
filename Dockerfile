@@ -1,4 +1,4 @@
-# --- AMR Fleet Failure-Prediction API ---------------------------------------
+# AMR Fleet Failure-Prediction API
 # Containerizes the FastAPI inference service (api/) together with the trained,
 # pruned model artifact (models/model.joblib). Monitoring/EDA code is NOT copied
 # in: the container's single job is real-time inference.

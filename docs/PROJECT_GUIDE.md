@@ -18,11 +18,11 @@ running, monitored, containerized service.
 3. [Repository structure](#3-repository-structure)
 4. [The Python environment: what a venv is and why use one](#4-the-python-environment-what-a-venv-is-and-why-use-one)
 5. [Dependencies explained, package by package](#5-dependencies-explained-package-by-package)
-6. [Stage 1: Data preparation (`src/data_prep.py`)](#6-stage-1:-data-preparation-srcdata_preppy)
-7. [Stage 2: Training and pruning (`src/train.py`)](#7-stage-2:-training-and-pruning-srctrainpy)
-8. [Stage 3: Model serving (`api/`)](#8-stage-3:-model-serving-api)
-9. [Stage 4: Monitoring and observability (`monitoring/`)](#9-stage-4:-monitoring-and-observability-monitoring)
-10. [Stage 5: Docker](#10-stage-5:-docker)
+6. [Stage 1: Data preparation (`src/data_prep.py`)](#6-stage-1-data-preparation-srcdata_preppy)
+7. [Stage 2: Training and pruning (`src/train.py`)](#7-stage-2-training-and-pruning-srctrainpy)
+8. [Stage 3: Model serving (`api/`)](#8-stage-3-model-serving-api)
+9. [Stage 4: Monitoring and observability (`monitoring/`)](#9-stage-4-monitoring-and-observability-monitoring)
+10. [Stage 5: Docker](#10-stage-5-docker)
 11. [End-to-end quickstart (clean machine → running system)](#11-end-to-end-quickstart)
 12. [Design decisions and FAQ](#12-design-decisions-and-faq)
 13. [Mapping to the theory](#13-mapping-to-the-theory)
@@ -160,7 +160,7 @@ sarab_mlops26/
 │   ├── drift_status_healthy.json
 │   └── drift_status_drift.json
 ├── docs/
-│   └── PROJECT_GUIDE.md         # this file
+│   └── PROJECT_GUIDE.md         
 ├── requirements.txt             # full dev environment
 ├── requirements-api.txt         # lean serving-only deps (for Docker)
 ├── Dockerfile                   # serving container
@@ -171,7 +171,7 @@ sarab_mlops26/
 
 ---
 
-## 4. The Python environment: what a venv is and why we use one
+## 4. The Python environment: what a venv is and why use one
 
 ### 4.1 What is a virtual environment (venv)?
 
@@ -182,30 +182,30 @@ goes into this local folder.
 
 Benefits, and why each matters for this project:
 
-- **Reproducibility** — the exact set of packages is listed in
+- **Reproducibility**: the exact set of packages is listed in
   `requirements.txt`. Anyone (or the Docker build) can recreate the identical
   environment. MLOps is fundamentally about reproducibility.
-- **No conflicts** — this project can use pandas 2.3 while another project uses
+- **No conflicts**: this project can use pandas 2.3 while another project uses
   pandas 1.x; they never interfere.
-- **Clean removal** — delete `venv/` and every dependency is gone, with the
+- **Clean removal**: delete `venv/` and every dependency is gone, with the
   system Python untouched.
-- **Parity with production** — the same `pip install -r requirements-api.txt`
+- **Parity with production**: the same `pip install -r requirements-api.txt`
   runs in the Docker image, so "works on my machine" becomes "works in the
   container".
 
 ### 4.2 Why `venv` and not conda / Poetry / uv
 
-`venv` is part of the Python standard library — nothing extra to install — and
+`venv` is part of the Python standard library, nothing extra to install and
 maps one-to-one onto the Docker workflow (`pip install -r requirements.txt`).
 Conda and Poetry are heavier tools that solve dependency-resolution and
 binary-packaging problems this project does not have. For a focused MLOps
-service, `venv` + `requirements.txt` is the simplest correct choice.
+service, `venv` + `requirements.txt` is the simplest choice.
 
 ### 4.3 One-time system prerequisite (Debian/Ubuntu)
 
 On Debian/Ubuntu, creating a venv requires the `python3-venv` system package
 (it provides `ensurepip`). If `python3 -m venv venv` fails with *"ensurepip is
-not available"*, install it once (requires your password):
+not available"*, install it once:
 
 ```bash
 sudo apt install python3.10-venv
@@ -239,7 +239,7 @@ interpreter instead, e.g. `./venv/bin/python -m src.data_prep`.
 |---|---|
 | `pandas` | Loading CSVs, feature engineering (rolling windows, joins), parquet I/O |
 | `numpy` | Numeric arrays underneath pandas/scikit-learn |
-| `scikit-learn` | The model (`RandomForestClassifier`), preprocessing, metrics, and **cost-complexity pruning** (`ccp_alpha`) |
+| `scikit-learn` | The model (`RandomForestClassifier`), preprocessing, metrics, and cost-complexity pruning (`ccp_alpha`) |
 | `pyarrow` | Fast, typed Parquet read/write for `features.parquet` |
 | `joblib` | Serializing the trained model + feature schema to disk |
 | `fastapi` | The REST API framework for real-time inference |
@@ -249,31 +249,30 @@ interpreter instead, e.g. `./venv/bin/python -m src.data_prep`.
 
 ### 5.2 `requirements-api.txt` (lean serving container)
 
-The Docker image only needs to **serve** the model, so it installs a reduced
+The Docker image only needs to serve the model, so it installs a reduced
 set (no `evidently`, `plotly`, `statsmodels`, `nltk`, …). This keeps the image
-small and the build fast. `scikit-learn` is **pinned to `1.5.2`** — the exact
-version used for training — so the pickled model unpickles without
+small and the build fast. `scikit-learn` is **pinned to `1.5.2`** which is the exact
+version used for training, so the pickled model unpickles without
 version-mismatch warnings.
 
 ---
 
-## 6. Stage 1 — Data preparation (`src/data_prep.py`)
+## 6. Stage 1: Data preparation (`src/data_prep.py`)
 
 ### 6.1 What it does
 
 Turns the five raw CSVs into a single labeled, feature-engineered table.
 
-1. **Rolling telemetry features** — for each of the 4 sensors, the mean and
+1. **Rolling telemetry features**: for each of the 4 sensors, the mean and
    standard deviation over a **short (3-hour)** and a **long (24-hour)** window,
-   computed **per machine** so windows never leak across units. This is the
-   standard predictive-maintenance feature recipe: it captures both the recent
+   computed per machine so windows never leak across units. This captures both the recent
    operating point and its short/long-term variability.
-2. **Error-count features** — for each error type, the count over the trailing
+2. **Error-count features**: for each error type, the count over the trailing
    24 hours (sparse error events aligned onto the hourly grid, then rolling-summed).
-3. **Machine metadata** — static `model` (categorical) and `age` (numeric).
-4. **Down-sampling** — one feature row every **3 hours** (reduces redundancy;
+3. **Machine metadata**: static `model` (categorical) and `age` (numeric).
+4. **Down-sampling**: one feature row every **3 hours** (reduces redundancy;
    consecutive hourly rows are near-duplicates).
-5. **Labeling** — `failure_within_24h = 1` if that machine has a component
+5. **Labeling**: `failure_within_24h = 1` if that machine has a component
    failure within the next 24 hours, else `0`. This is the AMR "the unit will
    fail its task" target.
 
@@ -317,7 +316,7 @@ are **not** model inputs.)
 
 ---
 
-## 7. Stage 2 — Training and pruning (`src/train.py`)
+## 7. Stage 2: Training and pruning (`src/train.py`)
 
 ### 7.1 What it does
 
@@ -408,7 +407,7 @@ cold-start), not inference speed. Do not claim a latency improvement.
 
 ---
 
-## 8. Stage 3 — Model serving (`api/`)
+## 8. Stage 3: Model serving (`api/`)
 
 ### 8.1 Components
 
@@ -482,7 +481,7 @@ sqlite3 monitoring/predictions.db \
 
 ---
 
-## 9. Stage 4 — Monitoring and observability (`monitoring/`)
+## 9. Stage 4: Monitoring and observability (`monitoring/`)
 
 ### 9.1 The idea
 
@@ -577,7 +576,7 @@ Example `reports/drift_status_drift.json`:
 
 ---
 
-## 10. Stage 5 — Docker
+## 10. Stage 5: Docker
 
 > Docker was **not installed on the development machine**, so the image below
 > was authored but **not built/tested locally**. The commands are standard and

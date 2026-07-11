@@ -1,14 +1,14 @@
-# --- Data (108 MB raw CSVs — keep out of git, download from Kaggle) ---
+# Data (108 MB raw CSVs keep out of git, download from Kaggle)
 dataset/
 data/processed/
 
-# --- Model artifacts ---
+# Model artifacts
 models/*.pkl
 models/*.joblib
 models/*.pt
 models/*.onnx
 
-# --- Python ---
+# Python
 venv/
 .venv/
 __pycache__/
@@ -16,13 +16,13 @@ __pycache__/
 *.egg-info/
 .ipynb_checkpoints/
 
-# --- Monitoring / logs ---
+# Monitoring / logs
 monitoring/*.db
 *.sqlite
 *.sqlite3
 reports/
 
-# --- Env / IDE ---
+# Env / IDE
 .env
 .vscode/
 .idea/

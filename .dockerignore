@@ -1,4 +1,4 @@
-# Keep the build context (and image) small — exclude everything the serving
+# Keep the build context (and image) small - exclude everything the serving
 # image doesn't need. NOTE: models/ is intentionally NOT ignored; the image
 # needs the trained artifact.
 .git/

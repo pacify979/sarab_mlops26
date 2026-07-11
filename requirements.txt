@@ -1,14 +1,14 @@
-# --- Data & modeling ---
+# Data & modeling
 pandas>=2.0,<3.0
 numpy>=1.24,<2.0
 scikit-learn>=1.3,<1.6
 pyarrow>=14.0          # parquet I/O for processed features
 joblib>=1.3            # model serialization
 
-# --- Serving (added in the API stage) ---
+# Serving (added in the API stage)
 fastapi>=0.110,<1.0
 uvicorn[standard]>=0.29
 pydantic>=2.6
 
-# --- Monitoring (added in the monitoring stage) ---
+# Monitoring (added in the monitoring stage)
 evidently>=0.4,<0.5   # pinned; Evidently's API changed a lot across versions
