@@ -1,0 +1,25 @@
+# Keep the build context (and image) small — exclude everything the serving
+# image doesn't need. NOTE: models/ is intentionally NOT ignored; the image
+# needs the trained artifact.
+.git/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Large data & generated outputs
+dataset/
+data/
+reports/
+monitoring/*.db
+*.sqlite*
+
+# Monitoring/EDA code & docs are not part of the serving image
+monitoring/
+docs/
+notebooks/
+
+# Local dev files
+.vscode/
+.idea/
+.env
