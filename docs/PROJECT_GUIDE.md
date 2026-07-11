@@ -86,7 +86,7 @@ below makes the correspondence explicit.
 ### 2.2 The dataset: Microsoft Azure Predictive Maintenance
 
 Downloaded from Kaggle
-(`arnabbiswas1/microsoft-azure-predictive-maintenance`) and unzipped into
+([`arnabbiswas1/microsoft-azure-predictive-maintenance`](https://www.kaggle.com/datasets/arnabbiswas1/microsoft-azure-predictive-maintenance?resource=download)) and unzipped into
 `dataset/`. Five CSV files:
 
 | File | Rows | Contents |
