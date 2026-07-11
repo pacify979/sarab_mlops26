@@ -1,9 +1,8 @@
-# AMR Fleet Monitoring — Complete Project Guide
+# AMR Fleet Monitoring: Complete Project Guide
 
-An MLOps architecture for monitoring the performance of an **AMR (Autonomous
-Mobile Robot) fleet** in a logistics center. This document explains **every**
-component, **every** dependency, the reasoning behind each design decision, and
-**exactly how to run every part** of the code — from a clean checkout to a
+An MLOps architecture for monitoring the performance of an AMR (Autonomous
+Mobile Robot) fleet in a logistics center. This document explains every
+component, dependency, the reasoning behind each design decision, and how to run every part of the code, from a clean checkout to a
 running, monitored, containerized service.
 
 > **Read this first if you are grading, presenting, or re-running the project.**
@@ -17,13 +16,13 @@ running, monitored, containerized service.
 1. [What the project does](#1-what-the-project-does)
 2. [The dataset and the AMR analogy](#2-the-dataset-and-the-amr-analogy)
 3. [Repository structure](#3-repository-structure)
-4. [The Python environment: what a venv is and why we use one](#4-the-python-environment-what-a-venv-is-and-why-we-use-one)
+4. [The Python environment: what a venv is and why use one](#4-the-python-environment-what-a-venv-is-and-why-use-one)
 5. [Dependencies explained, package by package](#5-dependencies-explained-package-by-package)
-6. [Stage 1 — Data preparation (`src/data_prep.py`)](#6-stage-1--data-preparation-srcdata_preppy)
-7. [Stage 2 — Training and pruning (`src/train.py`)](#7-stage-2--training-and-pruning-srctrainpy)
-8. [Stage 3 — Model serving (`api/`)](#8-stage-3--model-serving-api)
-9. [Stage 4 — Monitoring and observability (`monitoring/`)](#9-stage-4--monitoring-and-observability-monitoring)
-10. [Stage 5 — Docker](#10-stage-5--docker)
+6. [Stage 1: Data preparation (`src/data_prep.py`)](#6-stage-1:data-preparation-srcdata_preppy)
+7. [Stage 2: Training and pruning (`src/train.py`)](#7-stage-2:training-and-pruning-srctrainpy)
+8. [Stage 3: Model serving (`api/`)](#8-stage-3:model-serving-api)
+9. [Stage 4: Monitoring and observability (`monitoring/`)](#9-stage-4:monitoring-and-observability-monitoring)
+10. [Stage 5: Docker](#10-stage-5:docker)
 11. [End-to-end quickstart (clean machine → running system)](#11-end-to-end-quickstart)
 12. [Design decisions and FAQ](#12-design-decisions-and-faq)
 13. [Mapping to the theory](#13-mapping-to-the-theory)
@@ -33,18 +32,18 @@ running, monitored, containerized service.
 
 ## 1. What the project does
 
-The system predicts, from streaming fleet telemetry, **whether a mobile unit is
-about to fail to complete its task** (a component failure within the next 24
-hours), and continuously **monitors** the live data and the model's predictions
+The system predicts, from streaming fleet telemetry, whether a mobile unit is
+about to fail to complete its task (a component failure within the next 24
+hours), and continuously monitors the live data and the model's predictions
 for drift.
 
 It implements two MLOps components end-to-end:
 
-- **Model deployment & serving** — a FastAPI REST service for real-time
+- **Model deployment & serving**: a FastAPI REST service for real-time
   inference, a compressed (pruned) model to reduce deployment footprint, and a
   Docker image for portable deployment.
-- **Model monitoring** — an EvidentlyAI-based system that detects **data drift**
-  and **prediction drift** and checks input **data quality**, logging every
+- **Model monitoring**: an EvidentlyAI-based system that detects data drift
+  and prediction drift and checks input data quality, logging every
   request to a SQLite database for historical analysis.
 
 The full pipeline is:
@@ -72,14 +71,14 @@ reports/*.html + *.json        (drift reports + machine-readable verdict)
 ### 2.1 Why a proxy dataset
 
 Real AMR fleet telemetry is almost always proprietary; public AMR datasets are
-tiny and lack **operational outcome labels**. We therefore use a **structural
-proxy**: a dataset that shares the same *monitoring topology* — a fleet of
+small and lack operational outcome labels. We therefore use a structural
+proxy: a dataset that shares the same *monitoring topology*, a fleet of
 mobile units emitting multivariate operational telemetry over time, with task
-outcome labels — even though the units are industrial machines rather than
+outcome labels, even though the units are industrial machines rather than
 robots.
 
 The MLOps techniques demonstrated here (serving, drift detection, observability)
-depend only on the **statistical behaviour of the signals**, not on whether a
+depend only on the statistical behaviour of the signals, not on whether a
 feature is a robot's battery status or a machine's vibration reading. The
 analogy is justified at the level of *signal topology*, and the feature mapping
 below makes the correspondence explicit.
@@ -93,14 +92,13 @@ Downloaded from Kaggle
 | File | Rows | Contents |
 |------|------|----------|
 | `PdM_telemetry.csv` | 876,100 | Hourly readings of 4 sensors (`volt`, `rotate`, `pressure`, `vibration`) for 100 machines, all of 2015 |
-| `PdM_errors.csv` | 3,919 | Non-fatal error events (`error1`–`error5`) with timestamps |
-| `PdM_maint.csv` | 3,286 | Component replacement (maintenance) events (`comp1`–`comp4`) |
-| `PdM_failures.csv` | 761 | Component **failures** (`comp1`–`comp4`) — the outcome we predict |
+| `PdM_errors.csv` | 3,919 | Non-fatal error events (`error1`-`error5`) with timestamps |
+| `PdM_maint.csv` | 3,286 | Component replacement (maintenance) events (`comp1`-`comp4`) |
+| `PdM_failures.csv` | 761 | Component **failures** (`comp1`-`comp4`) - the outcome we predict |
 | `PdM_machines.csv` | 100 | Static metadata per machine: `model`, `age` |
 
 **Structure:** 100 units × 8,761 hourly telemetry rows × 4 sensors, over a full
-year, with real failure outcome labels. This is exactly the "fleet of mobile
-units emitting operational telemetry over time" topology we need.
+year, with real failure outcome labels.
 
 ### 2.3 Feature mapping (AMR ↔ dataset)
 
@@ -108,17 +106,17 @@ units emitting operational telemetry over time" topology we need.
 |---|---|---|
 | `volt`, `rotate`, `pressure`, `vibration` | motor current / wheel odometry / actuator load / chassis vibration | drift-monitored input features |
 | machine `age`, `model` | robot age, model variant | static/segment features |
-| `error1`–`error5` | robot fault codes | data-quality + categorical signals |
-| component failure (`comp1`–`comp4`) | subsystem fault → task abort | **target label** (task success/failure) |
+| `error1`-`error5` | robot fault codes | data-quality + categorical signals |
+| component failure (`comp1`-`comp4`) | subsystem fault → task abort | **target label** (task success/failure) |
 | hourly cadence, 100 units | telemetry heartbeat, fleet of N robots | monitoring topology |
 
 ### 2.4 Why not the "Logistics & Supply Chain" dataset
 
-The obvious narrative match (a truck-fleet logistics dataset) was rejected
-because it is largely **synthetic**, has weak per-vehicle temporal structure
+Another candidate in choosing a viable dataset was "Logistics and supply chain dataset" from Kaggle (['datasetengineer/logistics-and-supply-chain-dataset'](https://www.kaggle.com/datasets/datasetengineer/logistics-and-supply-chain-dataset)). The obvious narrative match (a truck-fleet logistics dataset) was rejected
+because it is largely synthetic, has weak per-vehicle temporal structure
 (making drift detection an artifact rather than a real measurement), and ships
-**pre-computed risk columns** (`Disruption Likelihood Score`, `Risk
-Classification`) that cause **target leakage** — the model would trivially
+pre-computed risk columns (`Disruption Likelihood Score`, `Risk
+Classification`) that cause target leakage. The model would trivially
 reproduce a score generated from the same features. The Azure set forces us to
 build the label ourselves, which is honest supervised learning and gives the
 drift monitor a real signal to watch.
