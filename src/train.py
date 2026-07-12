@@ -5,7 +5,7 @@ Two models are trained on identical data:
   * pruned    : RandomForest with cost-complexity pruning (ccp_alpha > 0)
 
 Cost-complexity pruning (Breiman) removes the weakest branches of each tree,
-shrinking the model. We report the trade-off that matters for a real-time API:
+shrinking the model. Report the trade-off that matters for a real-time API:
     model size on disk  +  inference latency   vs.   predictive quality (PR-AUC).
 The pruned model is saved as the production artifact for the FastAPI service.
 
@@ -39,10 +39,7 @@ CCP_ALPHA_GRID = [1e-5, 5e-5, 1e-4, 5e-4]   # candidate pruning strengths
 N_ESTIMATORS = 100
 RANDOM_STATE = 42
 
-
-# --------------------------------------------------------------------------- #
 # Data
-# --------------------------------------------------------------------------- #
 def time_split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split chronologically: earlier rows train, later rows test."""
     df = df.sort_values("datetime").reset_index(drop=True)
@@ -78,9 +75,7 @@ def build_pipeline(feature_cols: list[str], ccp_alpha: float) -> Pipeline:
     return Pipeline([("pre", pre), ("clf", clf)])
 
 
-# --------------------------------------------------------------------------- #
 # Evaluation helpers
-# --------------------------------------------------------------------------- #
 def evaluate(pipe: Pipeline, X_test: pd.DataFrame, y_test: np.ndarray) -> dict:
     proba = pipe.predict_proba(X_test)[:, 1]
     return {
@@ -95,7 +90,7 @@ def model_size_mb(pipe: Pipeline, path) -> float:
 
 
 def latency_ms(pipe: Pipeline, X_test: pd.DataFrame, n: int = 2000) -> float:
-    """Median single-row inference latency — what a real-time API experiences."""
+    """Median single-row inference latency: what a real-time API experiences."""
     sample = X_test.iloc[:n]
     times = []
     for i in range(len(sample)):
@@ -111,9 +106,6 @@ def total_nodes(pipe: Pipeline) -> int:
     return int(sum(est.tree_.node_count for est in forest.estimators_))
 
 
-# --------------------------------------------------------------------------- #
-# Main
-# --------------------------------------------------------------------------- #
 def main() -> None:
     C.MODELS_DIR.mkdir(parents=True, exist_ok=True)
     df = pd.read_parquet(C.FEATURES_PARQUET)
@@ -126,12 +118,12 @@ def main() -> None:
           f"| Test: {len(X_test):,} rows ({y_test.mean()*100:.2f}% pos)")
     print(f"Split at: {test_df['datetime'].min()}\n")
 
-    # --- Baseline (no pruning) ---
+    # Baseline (no pruning)
     print("Training baseline (ccp_alpha=0)...")
     baseline = build_pipeline(feature_cols, ccp_alpha=0.0).fit(X_train, y_train)
     base_metrics = evaluate(baseline, X_test, y_test)
 
-    # --- Pick pruning strength: strongest pruning that keeps PR-AUC within 2% ---
+    # Pick pruning strength: strongest pruning that keeps PR-AUC within 2%
     print("Searching pruning strength (ccp_alpha)...")
     best = {"alpha": 0.0, "pipe": baseline, "metrics": base_metrics}
     for alpha in CCP_ALPHA_GRID:
@@ -144,7 +136,7 @@ def main() -> None:
             best = {"alpha": alpha, "pipe": pipe, "metrics": m}   # grid ascends -> keep strongest
     pruned = best["pipe"]
 
-    # --- Compression report: baseline vs pruned ---
+    # Compression report: baseline vs pruned
     base_path = C.MODELS_DIR / "model_baseline.joblib"
     prod_path = C.MODELS_DIR / "model.joblib"   # pruned = production artifact
     base_size = model_size_mb(baseline, base_path)

@@ -1,7 +1,4 @@
 """Build a labeled, feature-engineered training table from raw PdM telemetry.
-
-Pipeline
---------
 1. Load the five raw CSVs.
 2. Engineer rolling-window telemetry features (3h and 24h mean/std) per machine.
 3. Add 24h rolling error counts per error type.
@@ -19,9 +16,7 @@ import pandas as pd
 from src import config as C
 
 
-# --------------------------------------------------------------------------- #
 # Loading
-# --------------------------------------------------------------------------- #
 def load_raw() -> dict[str, pd.DataFrame]:
     """Load the five raw CSVs, parsing datetimes."""
     telemetry = pd.read_csv(C.TELEMETRY_CSV, parse_dates=["datetime"])
@@ -37,10 +32,7 @@ def load_raw() -> dict[str, pd.DataFrame]:
         "machines": machines,
     }
 
-
-# --------------------------------------------------------------------------- #
 # Feature engineering
-# --------------------------------------------------------------------------- #
 def telemetry_features(telemetry: pd.DataFrame) -> pd.DataFrame:
     """Rolling mean & std of each sensor over short and long windows.
 
@@ -72,18 +64,18 @@ def telemetry_features(telemetry: pd.DataFrame) -> pd.DataFrame:
 def error_features(telemetry: pd.DataFrame, errors: pd.DataFrame) -> pd.DataFrame:
     """Count of each error type over the trailing LONG_WINDOW_H hours.
 
-    Errors are sparse events. We one-hot them, align to the hourly telemetry
+    Errors are sparse events. One-hot encoder, align to the hourly telemetry
     grid per machine, then take a trailing 24h rolling sum.
     """
-    # One-hot the error events, one row per (machine, datetime).
+    # One-hot error events, one row per (machine, datetime).
     err = pd.get_dummies(errors, columns=["errorID"], prefix="", prefix_sep="")
     err = err.groupby(["machineID", "datetime"], as_index=False).sum()
 
     # Align onto the full hourly telemetry grid so every hour has a count (0 if none).
     grid = telemetry[["machineID", "datetime"]].copy()
-    err = grid.merge(err, on=["machineID", "datetime"], how="left")
+    err = grid.merge(err, on=["machineID", "datetime"], how="left") # attach error flag on every machine hour where it exists
     count_cols = [c for c in C.ERROR_TYPES if c in err.columns]
-    err[count_cols] = err[count_cols].fillna(0)
+    err[count_cols] = err[count_cols].fillna(0) # hours with no error become 0
 
     err = err.sort_values(["machineID", "datetime"])
     g = err.groupby("machineID")
@@ -94,10 +86,7 @@ def error_features(telemetry: pd.DataFrame, errors: pd.DataFrame) -> pd.DataFram
         )
     return out
 
-
-# --------------------------------------------------------------------------- #
 # Labeling
-# --------------------------------------------------------------------------- #
 def add_label(features: pd.DataFrame, failures: pd.DataFrame) -> pd.DataFrame:
     """Label = 1 if a component fails within (t, t + LOOKAHEAD_H] for that machine.
 
@@ -121,10 +110,7 @@ def add_label(features: pd.DataFrame, failures: pd.DataFrame) -> pd.DataFrame:
         features.loc[positive_idx, C.LABEL_COL] = 1
     return features
 
-
-# --------------------------------------------------------------------------- #
 # Orchestration
-# --------------------------------------------------------------------------- #
 def build_features() -> pd.DataFrame:
     raw = load_raw()
 

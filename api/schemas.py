@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 class TelemetryFeatures(BaseModel):
     """One feature vector for a single machine at a single point in time."""
 
-    # --- Rolling sensor statistics (short 3h + long 24h windows) ---
+    # Rolling sensor statistics (short 3h + long 24h windows)
     volt_mean_3h: float
     volt_std_3h: float
     volt_mean_24h: float
@@ -28,14 +28,14 @@ class TelemetryFeatures(BaseModel):
     vibration_mean_24h: float
     vibration_std_24h: float
 
-    # --- Trailing 24h error counts ---
+    # Trailing 24h error counts
     error1_count_24h: float
     error2_count_24h: float
     error3_count_24h: float
     error4_count_24h: float
     error5_count_24h: float
 
-    # --- Static machine metadata ---
+    # Static machine metadata
     model: str = Field(..., examples=["model3"])
     age: int
 

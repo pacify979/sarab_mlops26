@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 
 from api import db
 from api.schemas import PredictionResponse, TelemetryFeatures
@@ -41,6 +42,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="AMR Fleet Failure-Prediction API", version="1.0", lifespan=lifespan)
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    # Send the bare root to the interactive docs instead of returning 404.
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")

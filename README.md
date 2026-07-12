@@ -26,6 +26,12 @@ raw CSVs → src/data_prep.py → features.parquet → src/train.py → models/m
         → api/main.py (serving + SQLite log) → monitoring/monitor.py → drift reports
 ```
 
+## Results
+
+PR-AUC 0.82 · pruning makes the model **38× smaller** with no accuracy loss ·
+the drift monitor correctly **flags an injected sensor fault** while staying
+**quiet on healthy traffic**.
+
 ## Quickstart
 
 ```bash
@@ -41,9 +47,17 @@ python -m src.data_prep      # build features -> data/processed/features.parquet
 python -m src.train          # train + prune  -> models/model.joblib
 uvicorn api.main:app --port 8000   # serve -> http://127.0.0.1:8000/docs
 
-# monitoring (new terminal, venv active, API running):
+# monitoring (new terminal, venv active, API running): 
+# run the monitor right after matching replay
 python -m monitoring.replay              && python -m monitoring.monitor --label healthy
 python -m monitoring.replay --drift      && python -m monitoring.monitor --label drift
+```
+
+Containerized serving (alternative to running `uvicorn` directly):
+
+```bash
+docker build -t amr-fleet-api .
+docker run --rm -p 8000:8000 amr-fleet-api   # -> http://127.0.0.1:8000/docs
 ```
 
 ## Documentation

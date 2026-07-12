@@ -35,6 +35,7 @@ from src.train import CATEGORICAL, time_split
 REPORTS_DIR = C.ROOT / "reports"
 PRED_COL = "failure_probability"
 REFERENCE_SAMPLE = 15000   # cap reference size so the report renders quickly
+CURRENT_WINDOW = 2000      # analyze only the most recent N logged requests
 SHARE_DRIFT_THRESHOLD = 0.30   # alert if >=30% of input features drift
 
 
@@ -53,10 +54,18 @@ def load_reference() -> tuple[pd.DataFrame, list[str]]:
 
 
 def load_current(feat_cols: list[str]) -> pd.DataFrame:
-    """Production requests replayed into SQLite by monitoring/replay.py."""
+    """The most recent CURRENT_WINDOW production requests from the SQLite log.
+
+    Only a bounded, recent window is analyzed (not the whole table), so older
+    traffic can't contaminate the comparison and no manual DB reset is needed.
+    This mirrors real monitoring: 'look at the last N requests'.
+    """
     with sqlite3.connect(DB_PATH) as conn:
         rows = pd.read_sql(
-            "SELECT features_json, failure_probability FROM predictions", conn
+            "SELECT features_json, failure_probability FROM predictions "
+            "ORDER BY id DESC LIMIT ?",
+            conn,
+            params=(CURRENT_WINDOW,),
         )
     if rows.empty:
         raise SystemExit(
