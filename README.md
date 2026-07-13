@@ -56,7 +56,7 @@ python -m monitoring.replay --drift      && python -m monitoring.monitor --label
 Containerized serving (alternative to running `uvicorn` directly):
 
 ```bash
-# requires Docker installed (Ubuntu: sudo apt install docker.io) — full steps in the guide §10.2
+# requires Docker installed (Ubuntu: sudo apt install docker.io), full steps in the guide §10.2
 docker build -t amr-fleet-api .
 # mount monitoring/ so the request log lands on the host (needed for the monitor)
 docker run --rm -p 8000:8000 -v "$(pwd)/monitoring:/app/monitoring" amr-fleet-api
