@@ -72,6 +72,9 @@ monitor sees a stale database.
 component, every dependency, design reasoning, and step-by-step run instructions
 for every part of the code.
 
+**[docs/SaraBabic_AMR_MLOps.pdf](docs/SaraBabic_AMR_MLOps.pdf)**: project
+presentation slides.
+
 ## Project layout
 
 | Path | Purpose |
