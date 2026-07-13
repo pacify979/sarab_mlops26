@@ -32,6 +32,25 @@ PR-AUC 0.82 · pruning makes the model **38× smaller** with no accuracy loss ·
 the drift monitor correctly **flags an injected sensor fault** while staying
 **quiet on healthy traffic**.
 
+## Dataset
+
+The dataset is **not included** in this repo (size + Kaggle licensing), so
+download it once before running:
+
+1. **Download** from Kaggle (free account required, click the *Download* button):
+   <https://www.kaggle.com/datasets/arnabbiswas1/microsoft-azure-predictive-maintenance>
+2. **Unzip** the download, it contains five CSV files.
+3. **Place all five files directly inside the `dataset/` folder**, so you end up with:
+   ```
+   dataset/PdM_telemetry.csv
+   dataset/PdM_errors.csv
+   dataset/PdM_maint.csv
+   dataset/PdM_failures.csv
+   dataset/PdM_machines.csv
+   ```
+   (The files must sit directly in `dataset/`, not in a sub-folder since that's where
+   `src/config.py` expects them.)
+
 ## Quickstart
 
 ```bash
@@ -42,7 +61,7 @@ sudo apt install python3.10-venv
 python3 -m venv venv && source venv/bin/activate
 pip install --upgrade pip && pip install -r requirements.txt
 
-# place the 5 Kaggle PdM_*.csv files in dataset/, then:
+# get the dataset first (see the "Dataset" section above), then build features:
 python -m src.data_prep      # build features -> data/processed/features.parquet
 python -m src.train          # train + prune  -> models/model.joblib
 uvicorn api.main:app --port 8000   # serve -> http://127.0.0.1:8000/docs
