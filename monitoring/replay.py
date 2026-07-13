@@ -22,7 +22,7 @@ API_URL = "http://127.0.0.1:8000/predict"
 N_REQUESTS = 2000       # sample size of the 'current' production window
 RANDOM_STATE = 42
 
-# Synthetic fleet-wide fault used as a POSITIVE CONTROL for the drift monitor:
+# Synthetic fleet-wide fault used as a positive control for the drift monitor:
 # elevated vibration (and its variability) plus higher pressure, as a robot
 # developing a mechanical fault would exhibit. Multiplicative shifts per column.
 DRIFT_SHIFTS = {

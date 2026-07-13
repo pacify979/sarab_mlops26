@@ -57,8 +57,14 @@ Containerized serving (alternative to running `uvicorn` directly):
 
 ```bash
 docker build -t amr-fleet-api .
-docker run --rm -p 8000:8000 amr-fleet-api   # -> http://127.0.0.1:8000/docs
+# mount monitoring/ so the request log lands on the host (needed for the monitor)
+docker run --rm -p 8000:8000 -v "$(pwd)/monitoring:/app/monitoring" amr-fleet-api
+# -> http://127.0.0.1:8000/docs
 ```
+
+The `-v` mount is required if you want to run the drift monitor against the
+container, without it the API logs inside the container and the host-side
+monitor sees a stale database.
 
 ## Documentation
 

@@ -575,10 +575,14 @@ Example `reports/drift_status_drift.json`:
 
 ## 10. Stage 5: Docker
 
-> Docker was **not installed on the development machine**, so the image below
-> was authored but **not built/tested locally**. The commands are standard and
-> the image is self-contained (verified: the serving code imports only
-> `src.config` + `api/*` + the pinned libraries in `requirements-api.txt`).
+> The image has been **built and run successfully**. It is a lean serving-only
+> image (verified: the serving code imports only `src.config` + `api/*` + the
+> pinned libraries in `requirements-api.txt`).
+>
+> **Important for monitoring:** the API logs to `/app/monitoring/predictions.db`
+> *inside* the container. To run the drift monitor against container traffic you
+> must mount the host's `monitoring/` folder (see 10.4), otherwise the log stays
+> inside the container and the host-side monitor reads a different (stale) database.
 
 ### 10.1 What the image contains
 
@@ -603,8 +607,14 @@ docker build -t amr-fleet-api .
 
 ### 10.4 Run
 
+Run with the host `monitoring/` folder **mounted** (`-v`), so the request log is
+written to the host, persisted across restarts, and readable by the drift
+monitor:
+
 ```bash
-docker run --rm -p 8000:8000 amr-fleet-api
+docker run --rm -p 8000:8000 \
+  -v "$(pwd)/monitoring:/app/monitoring" \
+  amr-fleet-api
 ```
 
 The API is then reachable exactly as in section 8:
@@ -613,16 +623,27 @@ The API is then reachable exactly as in section 8:
 curl -s http://127.0.0.1:8000/health
 ```
 
-### 10.5 Persisting the request log
+Without the `-v` mount the service still serves predictions, but its SQLite log
+lives only *inside* the container so `monitoring/monitor.py` on the host would
+read a different, stale database and report no drift even after a `--drift`
+replay. **Always mount the volume when you intend to monitor container traffic.**
 
-The container writes its SQLite log to `/app/monitoring/predictions.db`, which
-disappears when the container is removed. To keep the log on the host (so you
-can run the monitor against real container traffic), mount a volume:
+### 10.5 Monitoring the containerized service
+
+With the container running (mounted, from 10.4), drive traffic and run the
+monitor from the host exactly as in section 9, **no DB wipe needed** (the
+monitor reads only the most recent `CURRENT_WINDOW` rows):
 
 ```bash
-docker run --rm -p 8000:8000 \
-  -v "$(pwd)/monitoring:/app/monitoring" \
-  amr-fleet-api
+# second terminal, venv active, from project root
+python -m monitoring.replay --drift && python -m monitoring.monitor --label docker_drift
+python -m monitoring.replay          && python -m monitoring.monitor --label docker_healthy
+```
+
+Confirm the mount is live, the newest rows should be timestamped "now":
+
+```bash
+sqlite3 monitoring/predictions.db "SELECT COUNT(*), MAX(ts) FROM predictions;"
 ```
 
 ### 10.6 Configuring the decision threshold
